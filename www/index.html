@@ -171,7 +171,28 @@ pre {
 /* Route view */
 .route-form { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .form-row { display: flex; gap: 10px; }
-.form-row > div { flex: 1; min-width: 0; }
+.mobile-stack { flex-wrap: wrap; }
+@media (max-width: 560px) {
+  .form-row, .mobile-stack { flex-direction: column; gap: 10px; }
+  .route-actions { flex-direction: column; }
+  .route-actions .btn-primary, .route-actions .btn-secondary { width: 100%; }
+  .route-form { padding: 12px; }
+  .route-result { padding: 0 12px 20px; }
+  .search { flex-wrap: wrap; }
+  .search input { width: 100%; flex-basis: 100%; }
+  .search button { height: 44px; width: 100%; padding: 0 14px; }
+}
+.form-row > div { flex: 1; }
+.mobile-stack { flex-wrap: wrap; }
+.mobile-stack > div { min-width: 0; }
+@media (max-width: 520px) {
+  .route-form { padding: 14px; }
+  .form-row.mobile-stack { flex-direction: column; gap: 10px; }
+  .form-row.mobile-stack > div { width: 100%; }
+  .route-actions { flex-direction: column; }
+  .route-actions button { width: 100%; }
+}
+
 .form-label {
   display: block; font-size: 12px; font-weight: 600; color: var(--text2);
   margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.4px;
@@ -228,11 +249,11 @@ select.route-input {
 .point-id { font-weight: 650; }
 .point-coords { color: var(--text2); font-size: 12px; margin-top: 2px; }
 .point-dist { color: var(--text2); font-size: 12px; white-space: nowrap; }
-.errors-box {
+ .errors-box {
   background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c;
   border-radius: 10px; padding: 12px; margin-bottom: 12px; font-size: 13px;
 }
-[data-theme="dark"] .errors-box {
+[data-theme="dark"]  .errors-box {
   background: #450a0a; border-color: #7f1d1d; color: #fca5a5;
 }
 .hint {
@@ -243,7 +264,12 @@ footer {
   padding: 10px 16px 16px; font-size: 11px; color: var(--text2);
   text-align: center; border-top: 1px solid var(--border);
 }
-@media (max-width: 520px) { .form-row { flex-direction: column; } .route-actions { flex-direction: column; } .route-actions .btn-primary { width: 100%; } }
+ .errors-box { display:none !important; }
+
+.route-title{font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px}
+.route-string{white-space:normal;word-break:normal;overflow-wrap:normal;line-break:auto}
+.copy-actions{display:flex;justify-content:flex-end;margin-bottom:6px}
+.copy-btn{width:36px;height:36px;border:none;border-radius:10px;background:var(--primary);color:#fff;font-size:18px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -301,44 +327,25 @@ footer {
   <!-- ========== ROUTE VIEW ========== -->
   <div id="view-route" class="view">
     <div class="route-form">
-      <div class="section-title">Простой планировщик маршрута</div>
-
-      <div class="form-row">
-        <div>
-          <label class="form-label">Откуда</label>
-          <input class="route-input" id="routeFrom" maxlength="4" placeholder="URSS" autocomplete="off">
-        </div>
-        <div>
-          <label class="form-label">Куда</label>
-          <input class="route-input" id="routeTo" maxlength="4" placeholder="UUWW" autocomplete="off">
-        </div>
+      <div class="route-title">Планировщик маршрута</div>
+      <div class="hint">Введите только ICAO вылета и прилёта. Маршрут автоматически ищется по воздушным трассам и FIX.</div>
+      <div class="form-row mobile-stack">
+        <div><label class="form-label">Аэропорт вылета</label><input class="route-input" id="routeFrom" maxlength="4" placeholder="UUWW" autocomplete="off"></div>
+        <div><label class="form-label">Аэропорт прилёта</label><input class="route-input" id="routeTo" maxlength="4" placeholder="OMDB" autocomplete="off"></div>
       </div>
-
-      <div class="hint">Только аэропорт вылета и аэропорт прилёта. Маршрут строит внешний Route Planner; SID, STAR и ВПП здесь не выбираются.</div>
-
-      <div class="route-actions">
-        <button class="btn-primary" id="buildRouteBtn">Построить маршрут</button>
-      </div>
+      <div class="route-actions"><button class="btn-primary" id="buildRouteBtn">Построить маршрут</button></div>
     </div>
-
     <div id="routeStatus" class="status"></div>
-
-    <div id="routePreview" class="route-result" style="display:none"></div>
-
-    <div id="routeFrameWrap" style="display:none; padding:0 16px 24px; flex:1; min-height:0;">
-      <iframe id="routeFrame" title="Онлайн-планировщик" style="width:100%;height:70vh;border:1px solid var(--border);border-radius:12px;background:var(--surface);" loading="lazy" referrerpolicy="no-referrer"></iframe>
-      <button class="btn-secondary" id="openRouteExternal" style="width:100%;margin-top:8px;">Открыть планировщик в браузере</button>
-    </div>
+    <div id="routeResult" class="route-result" style="display:none"></div>
   </div>
 
-  <footer>Данные: Open-Meteo · Rotate Pilot · airac.net (текущий AIRAC)</footer>
+  <footer>Данные: Open-Meteo · Rotate Pilot · NG ROUTE</footer>
 </div>
 
 <script>
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 const FREE_AIRPORT_DB = "https://api.freeairportdb.com/v1/airports";
 const AIRAC_API = "https://airac.net/api/v1";
-const FPD_API_BASE = "https://airport-weather-fpd.dengrishin.workers.dev/fpd";
 const UA = "AirportWeather/2.0 (flight-sim; android)";
 
 const LOCAL_AIRPORTS = {
@@ -645,73 +652,43 @@ document.querySelectorAll(".tab").forEach(btn => {
   });
 });
 
-/* ========== ROUTE PLANNER: EXTERNAL ROUTE ENGINE ========== */
-const ROUTE_ENGINE_BASE = "https://flightplanner.haileyro.com/";
-let currentRouteUrl = "";
+/* ========== ROUTE PLANNER ========== */
+const ROUTE_PROXY = "https://airport-weather-fpd.dengrishin.workers.dev";
 
-function normalizeIcao(value) {
-  return value.trim().toUpperCase();
+async function buildRoute(){
+  const from=document.getElementById("routeFrom").value.trim().toUpperCase();
+  const to=document.getElementById("routeTo").value.trim().toUpperCase();
+  const btn=document.getElementById("buildRouteBtn");
+  const box=document.getElementById("routeResult");
+  if(!/^[A-Z0-9]{4}$/.test(from)||!/^[A-Z0-9]{4}$/.test(to)){setRouteStatus("Введите два корректных ICAO-кода",true);return;}
+  if(from===to){setRouteStatus("Аэропорты вылета и прилёта должны различаться",true);return;}
+  btn.disabled=true; box.style.display="none"; setRouteStatus("Ищу маршрут по воздушным трассам…");
+  try{
+    const c=new AbortController(); const t=setTimeout(()=>c.abort(),25000);
+    let r; try{r=await fetch(`${ROUTE_PROXY}/route/search?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,{headers:{Accept:"application/json"},signal:c.signal,cache:"no-store"});}finally{clearTimeout(t)}
+    const p=await r.json().catch(()=>({}));
+    if(!r.ok||!p.ok) throw new Error(p.message||p.error||`Ошибка сервера маршрутов (${r.status})`);
+    if(!p.route) throw new Error("Маршрут не найден");
+    renderSimpleRoute(p.route,from,to,p.source||"NG ROUTE"); setRouteStatus(`Маршрут построен: ${from} → ${to}`);
+  }catch(e){console.error(e);setRouteStatus(e.name==="AbortError"?"Поиск маршрута занял слишком много времени":(e.message||"Не удалось построить маршрут"),true)}
+  finally{btn.disabled=false}
 }
 
-function makeRouteEngineUrl(from, to) {
-  const u = new URL(ROUTE_ENGINE_BASE);
-  u.searchParams.set("dep", from);
-  u.searchParams.set("arr", to);
-  return u.toString();
+function renderSimpleRoute(route,from,to,source){
+  const box=document.getElementById("routeResult"); box.style.display="block";
+  const display=String(route).replace(/\s+/g," ").trim(); const tokens=display.split(/\s+/).filter(Boolean);
+  let html=`<div class="route-summary"><div class="dist" style="font-size:20px">${escapeHTML(from)} → ${escapeHTML(to)}</div><div class="meta">Источник: ${escapeHTML(source)}</div></div>`;
+  html+=`<div class="copy-actions"><button class="copy-btn" id="copyRouteBtn" title="Копировать маршрут" aria-label="Копировать маршрут">⧉</button></div>`;
+  html+=`<div class="copy-box route-string" id="copyBox">${escapeHTML(display)}</div>`;
+  html+=`<div class="section-title" style="margin:14px 0 8px">Маршрут</div><div class="points-list">`;
+  tokens.forEach((token,i)=>{html+=`<div class="point-item"><div class="point-num">${i+1}</div><div class="point-info"><div class="point-id">${escapeHTML(token)}</div></div></div>`});
+  html+=`</div>`; box.innerHTML=html;
+  document.getElementById("copyRouteBtn").addEventListener("click",()=>{const done=()=>{const b=document.getElementById("copyRouteBtn");b.textContent="✓";setTimeout(()=>b.textContent="⧉",1200)};const fallback=()=>{const ta=document.createElement("textarea");ta.value=display;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();done()}; if(navigator.clipboard?.writeText)navigator.clipboard.writeText(display).then(done).catch(fallback);else fallback()});
 }
 
-function renderRouteLaunch(from, to) {
-  const box = document.getElementById("routePreview");
-  currentRouteUrl = makeRouteEngineUrl(from, to);
-  box.style.display = "block";
-  box.innerHTML = `
-    <div class="route-summary">
-      <div class="dist">${escapeHTML(from)} → ${escapeHTML(to)}</div>
-      <div class="meta">Открывается внешний маршрутный движок без SID/STAR/RWY в нашем интерфейсе.</div>
-    </div>
-    <div class="copy-box" style="white-space:normal;word-break:normal;overflow-wrap:anywhere;">
-      <div style="font-family:ui-monospace,monospace;font-size:12px;">${escapeHTML(currentRouteUrl)}</div>
-    </div>`;
-
-  const wrap = document.getElementById("routeFrameWrap");
-  const frame = document.getElementById("routeFrame");
-  frame.src = currentRouteUrl;
-  wrap.style.display = "block";
-}
-
-async function buildRoute() {
-  const from = normalizeIcao(document.getElementById("routeFrom").value);
-  const to = normalizeIcao(document.getElementById("routeTo").value);
-  const btn = document.getElementById("buildRouteBtn");
-
-  document.getElementById("routePreview").style.display = "none";
-  document.getElementById("routeFrameWrap").style.display = "none";
-
-  if (!/^[A-Z0-9]{4}$/.test(from) || !/^[A-Z0-9]{4}$/.test(to)) {
-    setRouteStatus("Введите два корректных 4-символьных ICAO-кода", true);
-    return;
-  }
-
-  btn.disabled = true;
-  setRouteStatus("Открываю Route Planner…");
-
-  try {
-    renderRouteLaunch(from, to);
-    setRouteStatus("Route Planner открыт");
-  } catch (e) {
-    console.error(e);
-    setRouteStatus(e.message || "Не удалось открыть планировщик", true);
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-document.getElementById("buildRouteBtn").addEventListener("click", buildRoute);
-document.getElementById("openRouteExternal").addEventListener("click", () => {
-  if (currentRouteUrl) {
-    window.open(currentRouteUrl, "_blank");
-  }
-});
+document.getElementById("buildRouteBtn").addEventListener("click",buildRoute);
+document.getElementById("routeFrom").addEventListener("keydown",e=>{if(e.key==="Enter")buildRoute()});
+document.getElementById("routeTo").addEventListener("keydown",e=>{if(e.key==="Enter")buildRoute()});
 
 /* ========== INIT ========== */
 initTheme();
