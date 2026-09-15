@@ -243,6 +243,34 @@ footer {
   padding: 10px 16px 16px; font-size: 11px; color: var(--text2);
   text-align: center; border-top: 1px solid var(--border);
 }
+
+/* Mobile / Android layout fixes */
+html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+body { margin: 0; }
+.app { width: 100%; max-width: 520px; min-width: 0; }
+.route-form, .route-result, .search-wrap, .panel { width: 100%; min-width: 0; }
+.form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.form-row > div { min-width: 0; }
+.route-input, select.route-input { width: 100%; max-width: 100%; min-width: 0; }
+.route-actions { width: 100%; min-width: 0; }
+.route-actions > * { min-width: 0; }
+.copy-box { padding-right: 104px; overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .app { max-width: 100%; }
+  header { padding-left: 14px; padding-right: 14px; }
+  .route-form { padding: 12px 14px; gap: 10px; }
+  .form-row { grid-template-columns: 1fr; gap: 10px; }
+  .route-actions { flex-direction: column; }
+  .route-actions .btn-primary, .route-actions .btn-secondary { width: 100%; }
+  .airac-row { align-items: flex-start !important; flex-direction: column; }
+  .copy-box { padding-right: 12px; padding-top: 44px; }
+  .copy-btn { top: 8px; left: 8px; right: auto; }
+  .route-summary .dist { font-size: 24px; }
+}
+@media (min-width: 900px) {
+  .app { max-width: 560px; }
+}
+
 </style>
 </head>
 <body>
@@ -300,57 +328,57 @@ footer {
   <!-- ========== ROUTE VIEW ========== -->
   <div id="view-route" class="view">
     <div class="route-form">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div class="airac-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
         <span class="airac-badge" id="airacBadge">AIRAC …</span>
         <span class="hint" id="airacDates"></span>
       </div>
 
       <div class="form-row">
         <div>
-          <label class="form-label">Откуда</label>
-          <input class="route-input" id="routeFrom" maxlength="4" placeholder="UUWW" autocomplete="off">
+          <label class="form-label">Аэропорт вылета</label>
+          <input class="route-input" id="routeFrom" maxlength="4" placeholder="UUWW" autocomplete="off" inputmode="text">
         </div>
         <div>
-          <label class="form-label">Куда</label>
-          <input class="route-input" id="routeTo" maxlength="4" placeholder="ULLI" autocomplete="off">
+          <label class="form-label">Аэропорт прилёта</label>
+          <input class="route-input" id="routeTo" maxlength="4" placeholder="UUEE" autocomplete="off" inputmode="text">
         </div>
       </div>
 
       <div class="route-actions" style="margin-top:0">
-        <button class="btn-secondary" id="loadProcBtn" style="flex:1">Загрузить SID / STAR</button>
+        <button class="btn-secondary" id="loadProcBtn">Загрузить SID / STAR</button>
       </div>
 
       <div class="form-row">
         <div>
-          <label class="form-label">SID (вылет)</label>
+          <label class="form-label">SID — схема вылета</label>
           <select class="route-input" id="routeSid">
-            <option value="">— без SID (DCT) —</option>
+            <option value="">Сначала загрузите схемы</option>
           </select>
         </div>
         <div>
-          <label class="form-label">STAR (прилёт)</label>
+          <label class="form-label">STAR — схема прилёта</label>
           <select class="route-input" id="routeStar">
-            <option value="">— без STAR (DCT) —</option>
+            <option value="">Сначала загрузите схемы</option>
           </select>
         </div>
       </div>
 
       <div>
-        <label class="form-label">Доп. трассы / точки <span style="font-weight:400;text-transform:none">(необязательно)</span></label>
-        <input class="route-input" id="routeString" placeholder="оставьте пустым — будет DCT" autocomplete="off" style="text-transform:none">
-        <div class="hint" style="margin-top:6px">Обычно ничего вводить не нужно. Маршрут соберётся автоматически: SID → DCT → STAR.</div>
+        <label class="form-label">Дополнительный участок <span style="font-weight:400;text-transform:none">(необязательно)</span></label>
+        <input class="route-input" id="routeString" placeholder="Например: DVL UL851 ER DANZA" autocomplete="off" style="text-transform:uppercase">
+        <div class="hint" style="margin-top:6px">Оставьте пустым — приложение само найдёт en-route участок между последней точкой SID и первой точкой STAR.</div>
       </div>
 
       <div class="route-actions">
-        <button class="btn-primary" id="buildRouteBtn">Построить маршрут</button>
+        <button class="btn-primary" id="buildRouteBtn">Построить полный маршрут</button>
       </div>
     </div>
 
-    <div id="routeStatus" class="status"></div>
+    <div id="routeStatus" class="status">Введите ICAO и загрузите схемы.</div>
     <div id="routeResult" class="route-result" style="display:none"></div>
   </div>
 
-  <footer>Данные: Open-Meteo · Rotate Pilot · airac.net (текущий AIRAC)</footer>
+  <footer>Данные: Open-Meteo · AIRAC (текущий цикл)</footer>
 </div>
 
 <script>
@@ -664,35 +692,77 @@ document.querySelectorAll(".tab").forEach(btn => {
 });
 
 /* ========== ROUTE PLANNER ========== */
+
+function routeHeaders() {
+  return {
+    Accept: "application/json",
+    "User-Agent": UA
+  };
+}
+
+async function apiGet(url) {
+  const r = await fetch(url, {headers: routeHeaders()});
+  let json = null;
+  try { json = await r.json(); } catch {}
+  if (!r.ok) {
+    const msg = json?.message || `HTTP ${r.status}`;
+    throw new Error(msg);
+  }
+  if (json?.status === "error") {
+    throw new Error(json.message || "Ошибка AIRAC API");
+  }
+  return json;
+}
+
 async function loadAirac() {
   try {
-    const r = await fetch(`${AIRAC_API}/airac/current`, {
-      headers: {Accept:"application/json", "User-Agent": UA}
-    });
-    if (!r.ok) throw new Error("AIRAC недоступен");
-    const json = await r.json();
-    currentAirac = json.data;
-    document.getElementById("airacBadge").textContent = `AIRAC ${currentAirac.cycle}`;
-    const eff = currentAirac.effective_date?.slice(0,10) || "";
-    const exp = currentAirac.expiration_date?.slice(0,10) || "";
+    const json = await apiGet(`${AIRAC_API}/airac/current`);
+    currentAirac = json.data || null;
+    document.getElementById("airacBadge").textContent = currentAirac?.cycle ? `AIRAC ${currentAirac.cycle}` : "AIRAC ?";
+    const eff = currentAirac?.effective_date?.slice(0,10) || "";
+    const exp = currentAirac?.expiration_date?.slice(0,10) || "";
     document.getElementById("airacDates").textContent = eff && exp ? `${eff} → ${exp}` : "";
   } catch (e) {
     document.getElementById("airacBadge").textContent = "AIRAC ?";
-    document.getElementById("airacDates").textContent = "не удалось загрузить";
+    document.getElementById("airacDates").textContent = "ошибка загрузки";
+    console.error(e);
   }
 }
 
 async function fetchProcedures(icao, type) {
-  try {
-    const r = await fetch(`${AIRAC_API}/procedures?airport=${encodeURIComponent(icao)}&type=${type}`, {
-      headers: {Accept:"application/json", "User-Agent": UA}
-    });
-    if (!r.ok) return [];
-    const json = await r.json();
-    return Array.isArray(json.data) ? json.data : [];
-  } catch {
-    return [];
+  const url = `${AIRAC_API}/procedures?airport=${encodeURIComponent(icao)}&type=${type}`;
+  const json = await apiGet(url);
+  return Array.isArray(json.data) ? json.data : [];
+}
+
+function procedureLabel(p) {
+  const ident = p?.identifier || "?";
+  const runway = p?.runway ? ` · RWY ${p.runway}` : "";
+  const name = p?.name && p.name !== ident ? ` — ${p.name}` : "";
+  return `${ident}${runway}${name}`;
+}
+
+function fillProcedureSelect(select, items, emptyText) {
+  const unique = [];
+  const seen = new Set();
+  for (const p of items) {
+    const id = (p?.identifier || "").toUpperCase();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    unique.push(p);
   }
+  select.innerHTML = "";
+  const first = document.createElement("option");
+  first.value = "";
+  first.textContent = emptyText;
+  select.appendChild(first);
+  unique.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p.identifier;
+    opt.textContent = procedureLabel(p);
+    select.appendChild(opt);
+  });
+  return unique.length;
 }
 
 async function loadProcedures() {
@@ -702,84 +772,222 @@ async function loadProcedures() {
   const starSel = document.getElementById("routeStar");
 
   if (!/^[A-Z0-9]{4}$/.test(from) || !/^[A-Z0-9]{4}$/.test(to)) {
-    setRouteStatus("Сначала укажите корректные ICAO откуда и куда", true);
+    setRouteStatus("Введите два корректных 4-буквенных ICAO-кода.", true);
     return;
   }
 
-  setRouteStatus("Загрузка SID / STAR…");
-  sidSel.innerHTML = `<option value="">— без SID (DCT) —</option>`;
-  starSel.innerHTML = `<option value="">— без STAR (DCT) —</option>`;
+  const btn = document.getElementById("loadProcBtn");
+  btn.disabled = true;
+  sidSel.innerHTML = `<option value="">Загрузка…</option>`;
+  starSel.innerHTML = `<option value="">Загрузка…</option>`;
+  setRouteStatus(`Получаю SID для ${from} и STAR для ${to}…`);
 
-  const [sids, stars] = await Promise.all([
-    fetchProcedures(from, "SID"),
-    fetchProcedures(to, "STAR")
-  ]);
+  try {
+    const [sids, stars] = await Promise.all([
+      fetchProcedures(from, "SID"),
+      fetchProcedures(to, "STAR")
+    ]);
 
-  sids.forEach(p => {
-    const opt = document.createElement("option");
-    opt.value = p.identifier;
-    opt.textContent = `${p.identifier}${p.runway ? " (RWY "+p.runway+")" : ""}`;
-    sidSel.appendChild(opt);
-  });
-  stars.forEach(p => {
-    const opt = document.createElement("option");
-    opt.value = p.identifier;
-    opt.textContent = `${p.identifier}${p.runway ? " (RWY "+p.runway+")" : ""}`;
-    starSel.appendChild(opt);
-  });
+    const sidCount = fillProcedureSelect(sidSel, sids, "— выбрать SID —");
+    const starCount = fillProcedureSelect(starSel, stars, "— выбрать STAR —");
 
-  setRouteStatus(`Загружено SID: ${sids.length} · STAR: ${stars.length}. Выберите схемы и нажмите «Построить».`);
+    if (!sidCount && !starCount) {
+      throw new Error(`AIRAC API не вернул схемы для ${from} / ${to}.`);
+    }
+
+    setRouteStatus(`Найдено SID: ${sidCount} · STAR: ${starCount}. Выберите обе схемы.`);
+  } catch (e) {
+    sidSel.innerHTML = `<option value="">Не загружено</option>`;
+    starSel.innerHTML = `<option value="">Не загружено</option>`;
+    console.error(e);
+    setRouteStatus(`Не удалось загрузить SID/STAR: ${e.message}`, true);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
-/** Автоматически собирает маршрутную строку:
- *  SID (если выбран) + доп.трассы или DCT + STAR (если выбран)
- */
-function buildRouteString() {
-  const sid = document.getElementById("routeSid").value.trim();
-  const star = document.getElementById("routeStar").value.trim();
-  let mid = document.getElementById("routeString").value.trim().toUpperCase();
+function normalizeFixList(value) {
+  const arr = Array.isArray(value) ? value : [];
+  return arr
+    .map(x => ({
+      id: (x?.fix_identifier || x?.identifier || "").toUpperCase(),
+      lat: x?.fix_coordinates?.lat ?? x?.coordinates?.lat ?? null,
+      lon: x?.fix_coordinates?.lon ?? x?.coordinates?.lon ?? null,
+      sequence: Number(x?.sequence || 0)
+    }))
+    .filter(x => x.id)
+    .sort((a,b) => a.sequence - b.sequence);
+}
 
-  // Если пользователь ничего не ввёл — ставим DCT между SID и STAR
-  if (!mid) mid = "DCT";
+function extractCommonRoute(detail) {
+  const cr = detail?.common_route;
+  if (Array.isArray(cr)) return normalizeFixList(cr);
+  if (cr && typeof cr === "object") {
+    const flattened = [];
+    for (const value of Object.values(cr)) {
+      if (Array.isArray(value)) flattened.push(...normalizeFixList(value));
+    }
+    return flattened.sort((a,b) => a.sequence - b.sequence);
+  }
+  return [];
+}
 
-  const parts = [];
-  if (sid) parts.push(sid);
-  parts.push(mid);
-  if (star) parts.push(star);
+function extractRunwayTransition(detail, runway) {
+  const rt = detail?.runway_transitions;
+  if (!rt || typeof rt !== "object") return [];
+  const selected = runway && Array.isArray(rt[runway]) ? rt[runway] : null;
+  if (selected) return normalizeFixList(selected);
+  const firstKey = Object.keys(rt)[0];
+  return firstKey && Array.isArray(rt[firstKey]) ? normalizeFixList(rt[firstKey]) : [];
+}
 
-  return parts.join(" ").replace(/\s+/g, " ").trim();
+async function fetchProcedureDetail(icao, identifier) {
+  const url = `${AIRAC_API}/procedures/${encodeURIComponent(icao)}/${encodeURIComponent(identifier)}`;
+  const json = await apiGet(url);
+  return json.data;
+}
+
+function chooseProcedureFixes(detail) {
+  const runwayPart = extractRunwayTransition(detail, detail?.runway);
+  const commonPart = extractCommonRoute(detail);
+  const merged = [...runwayPart, ...commonPart];
+  const out = [];
+  const seen = new Set();
+  for (const p of merged) {
+    if (!p.id || seen.has(p.id)) continue;
+    seen.add(p.id);
+    out.push(p);
+  }
+  return out;
+}
+
+function tokensFromGeneric(obj) {
+  const found = [];
+  const push = (v) => {
+    if (typeof v !== "string") return;
+    const x = v.trim().toUpperCase();
+    if (x && !found.includes(x)) found.push(x);
+  };
+  const airwayRe = /^[A-Z][0-9]{1,4}$/;
+  function walk(node) {
+    if (!node) return;
+    if (typeof node === "string") return;
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (typeof node !== "object") return;
+    const airway = node.airway_identifier || node.airway || node.route_designator;
+    const from = node.from_fix || node.from_identifier || (node.from && node.from.identifier);
+    const to = node.to_fix || node.to_identifier || (node.to && node.to.identifier);
+    if (typeof from === "string") push(from);
+    if (typeof airway === "string" && airwayRe.test(airway.trim().toUpperCase())) push(airway);
+    if (typeof to === "string") push(to);
+    for (const [k,v] of Object.entries(node)) {
+      if (["route","route_string","airway_route","airways"].includes(k)) {
+        if (typeof v === "string") v.split(/\s+/).forEach(push);
+        else walk(v);
+      } else if (k === "segments" || k === "legs") {
+        walk(v);
+      }
+    }
+  }
+  walk(obj);
+  return found;
+}
+
+async function findAirwayConnection(fromFix, toFix) {
+  const url = `${AIRAC_API}/airways/route?from=${encodeURIComponent(fromFix)}&to=${encodeURIComponent(toFix)}`;
+  const json = await apiGet(url);
+  const data = json.data;
+
+  let tokens = [];
+  if (typeof data === "string") tokens = data.trim().split(/\s+/);
+  else if (Array.isArray(data?.route)) tokens = data.route.flatMap(x => typeof x === "string" ? x.split(/\s+/) : []);
+  else if (typeof data?.route_string === "string") tokens = data.route_string.trim().split(/\s+/);
+  else tokens = tokensFromGeneric(data);
+
+  tokens = tokens.map(x => x.toUpperCase()).filter(Boolean);
+
+  if (!tokens.length) {
+    throw new Error(`AIRAC не вернул en-route трассу между ${fromFix} и ${toFix}.`);
+  }
+
+  return tokens;
+}
+
+function cleanTokens(tokens) {
+  const out = [];
+  for (const x of tokens) {
+    const t = String(x || "").trim().toUpperCase();
+    if (!t) continue;
+    if (out[out.length - 1] === t) continue;
+    out.push(t);
+  }
+  return out;
 }
 
 async function buildRoute() {
   const from = document.getElementById("routeFrom").value.trim().toUpperCase();
   const to = document.getElementById("routeTo").value.trim().toUpperCase();
+  const sid = document.getElementById("routeSid").value.trim().toUpperCase();
+  const star = document.getElementById("routeStar").value.trim().toUpperCase();
+  const manual = document.getElementById("routeString").value.trim().toUpperCase();
   const btn = document.getElementById("buildRouteBtn");
 
   if (!/^[A-Z0-9]{4}$/.test(from) || !/^[A-Z0-9]{4}$/.test(to)) {
-    setRouteStatus("Укажите корректные ICAO коды откуда и куда", true);
+    setRouteStatus("Введите корректные ICAO-коды вылета и прилёта.", true);
+    return;
+  }
+  if (!sid || !star) {
+    setRouteStatus("Выберите SID и STAR. Без них полноценный маршрут не строим.", true);
     return;
   }
 
-  const routeStr = buildRouteString();
   btn.disabled = true;
-  setRouteStatus("Построение маршрута по текущему AIRAC…");
   document.getElementById("routeResult").style.display = "none";
 
   try {
+    setRouteStatus("Получаю структуру SID и STAR…");
+    const [sidDetail, starDetail] = await Promise.all([
+      fetchProcedureDetail(from, sid),
+      fetchProcedureDetail(to, star)
+    ]);
+
+    const sidFixes = chooseProcedureFixes(sidDetail);
+    const starFixes = chooseProcedureFixes(starDetail);
+
+    if (!sidFixes.length) throw new Error(`У SID ${sid} нет читаемых точек.`);
+    if (!starFixes.length) throw new Error(`У STAR ${star} нет читаемых точек.`);
+
+    const sidExit = sidFixes[sidFixes.length - 1].id;
+    const starEntry = starFixes[0].id;
+
+    setRouteStatus(`Ищу воздушные трассы ${sidExit} → ${starEntry}…`);
+
+    let middleTokens = [];
+    if (manual) {
+      middleTokens = manual.split(/\s+/).filter(Boolean);
+    } else {
+      middleTokens = await findAirwayConnection(sidExit, starEntry);
+    }
+
+    middleTokens = cleanTokens(middleTokens).filter(x => x !== sidExit && x !== starEntry);
+
+    if (!middleTokens.length && sidExit !== starEntry) {
+      throw new Error(`Между ${sidExit} и ${starEntry} не найден опубликованный en-route участок.`);
+    }
+
+    const routeStr = cleanTokens([sid, ...middleTokens, star]).join(" ");
+
+    setRouteStatus("Разворачиваю SID → трассы → STAR в реальные точки…");
+
     const params = new URLSearchParams({
       origin: from,
       destination: to,
       route: routeStr
     });
-    const r = await fetch(`${AIRAC_API}/routes/parse?${params}`, {
-      headers: {Accept:"application/json", "User-Agent": UA}
-    });
-    if (!r.ok) throw new Error(`Ошибка API (${r.status})`);
-    const json = await r.json();
-    if (json.status !== "success") throw new Error(json.message || "Не удалось построить маршрут");
 
-    renderRouteResult(json.data, from, to, routeStr);
-    setRouteStatus("Маршрут построен");
+    const parsed = await apiGet(`${AIRAC_API}/routes/parse?${params.toString()}`);
+    renderRouteResult(parsed.data, from, to, routeStr, sidFixes, starFixes, middleTokens);
+    setRouteStatus("Готово: полный маршрут построен.");
   } catch (e) {
     console.error(e);
     setRouteStatus(e.message || "Ошибка построения маршрута", true);
@@ -788,115 +996,80 @@ async function buildRoute() {
   }
 }
 
-function renderRouteResult(data, from, to, routeStr) {
+function renderRouteResult(data, from, to, routeStr, sidFixes, starFixes, middleTokens) {
   const box = document.getElementById("routeResult");
   box.style.display = "block";
-
-  const segments = data.segments || [];
-  const total = data.total_distance != null ? data.total_distance.toFixed(1) : "—";
-  const errors = data.errors || [];
-
-  // Build clean copyable string: ORIGIN [SID] ...points... [STAR] DEST
-  const pointIds = [];
-  segments.forEach((seg, i) => {
-    if (i === 0 && seg.from) pointIds.push(seg.from.identifier);
-    if (seg.to) pointIds.push(seg.to.identifier);
-  });
-  // Prefer a compact flight-plan style string
+  const segments = Array.isArray(data?.segments) ? data.segments : [];
+  const total = Number.isFinite(Number(data?.total_distance)) ? Number(data.total_distance).toFixed(1) : "—";
+  const errors = Array.isArray(data?.errors) ? data.errors : [];
   const copyStr = `${from} ${routeStr} ${to}`.replace(/\s+/g, " ").trim();
 
   let html = `
     <div class="route-summary">
       <div class="dist">${total} NM</div>
-      <div class="meta">${from} → ${to} · AIRAC ${currentAirac?.cycle || "?"}</div>
+      <div class="meta">${escapeHTML(from)} → ${escapeHTML(to)} · AIRAC ${escapeHTML(currentAirac?.cycle || "?")}</div>
     </div>
-
-    <div class="copy-box" id="copyBox">
-      ${escapeHTML(copyStr)}
-      <button class="copy-btn" id="copyRouteBtn">Копировать</button>
-    </div>
+    <div class="copy-box">${escapeHTML(copyStr)}<button class="copy-btn" id="copyRouteBtn">Копировать</button></div>
+    <div class="section-title">Автоматически найденный en-route</div>
+    <div class="hint" style="margin-bottom:10px">${escapeHTML(middleTokens.join(" → ") || "нет")}</div>
   `;
 
   if (errors.length) {
-    html += `<div class="errors-box"><strong>Предупреждения:</strong><br>${
-      errors.map(e => escapeHTML(e.message || JSON.stringify(e))).join("<br>")
-    }</div>`;
+    html += `<div class="errors-box"><strong>Ответ API:</strong><br>${errors.map(e => escapeHTML(e.message || JSON.stringify(e))).join("<br>")}</div>`;
   }
 
-  html += `<div class="section-title" style="margin-bottom:8px">Точки маршрута</div><div class="points-list">`;
-
-  // Flatten unique points with cumulative distance
   const points = [];
-  segments.forEach((seg, idx) => {
-    if (idx === 0 && seg.from) {
-      points.push({
-        id: seg.from.identifier,
-        name: seg.from.name || "",
-        lat: seg.from.coordinates?.lat,
-        lon: seg.from.coordinates?.lon,
-        cum: 0
-      });
-    }
-    if (seg.to) {
-      points.push({
-        id: seg.to.identifier,
-        name: seg.to.name || "",
-        lat: seg.to.coordinates?.lat,
-        lon: seg.to.coordinates?.lon,
-        cum: seg.cumulative_distance,
-        via: seg.to.via || null,
-        bearing: seg.bearing
-      });
-    }
-  });
+  for (let i=0; i<segments.length; i++) {
+    const seg = segments[i];
+    if (i === 0 && seg?.from) points.push(seg.from);
+    if (seg?.to) points.push(seg.to);
+  }
+  const unique = [];
+  const seen = new Set();
+  for (const p of points) {
+    const id = String(p?.identifier || "").toUpperCase();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    unique.push(p);
+  }
 
-  points.forEach((p, i) => {
-    const coords = (p.lat != null && p.lon != null)
-      ? `${Number(p.lat).toFixed(4)}, ${Number(p.lon).toFixed(4)}`
-      : "—";
+  html += `<div class="section-title" style="margin-top:14px">Точки полного маршрута · ${unique.length}</div><div class="points-list">`;
+
+  unique.forEach((p, i) => {
+    const coords = p?.coordinates && p.coordinates.lat != null && p.coordinates.lon != null
+      ? `${Number(p.coordinates.lat).toFixed(4)}, ${Number(p.coordinates.lon).toFixed(4)}` : "—";
     html += `
       <div class="point-item">
         <div class="point-num">${i+1}</div>
         <div class="point-info">
-          <div class="point-id">${escapeHTML(p.id)}${p.name && p.name !== p.id ? " · "+escapeHTML(p.name) : ""}</div>
-          <div class="point-coords">${coords}</div>
+          <div class="point-id">${escapeHTML(p.identifier || "?")}</div>
+          <div class="point-coords">${escapeHTML(p.name || p.type || "waypoint")} · ${escapeHTML(coords)}</div>
+          ${p.via ? `<div class="point-coords">${escapeHTML(p.via)}</div>` : ""}
         </div>
-        <div class="point-dist">${p.cum != null ? p.cum.toFixed(1)+" NM" : ""}</div>
       </div>`;
   });
-
   html += `</div>`;
   box.innerHTML = html;
 
-  document.getElementById("copyRouteBtn").addEventListener("click", () => {
-    navigator.clipboard.writeText(copyStr).then(() => {
-      const b = document.getElementById("copyRouteBtn");
-      b.textContent = "Скопировано";
-      setTimeout(() => b.textContent = "Копировать", 1500);
-    }).catch(() => {
-      // fallback
+  const copy = document.getElementById("copyRouteBtn");
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(copyStr);
+    } catch {
       const ta = document.createElement("textarea");
       ta.value = copyStr;
       document.body.appendChild(ta);
       ta.select();
       document.execCommand("copy");
-      document.body.removeChild(ta);
-      const b = document.getElementById("copyRouteBtn");
-      b.textContent = "Скопировано";
-      setTimeout(() => b.textContent = "Копировать", 1500);
-    });
+      ta.remove();
+    }
+    copy.textContent = "Скопировано";
+    setTimeout(() => copy.textContent = "Копировать", 1500);
   });
 }
 
 document.getElementById("buildRouteBtn").addEventListener("click", buildRoute);
 document.getElementById("loadProcBtn").addEventListener("click", loadProcedures);
-document.getElementById("routeFrom").addEventListener("change", () => {
-  document.getElementById("routeSid").innerHTML = `<option value="">— без SID (DCT) —</option>`;
-});
-document.getElementById("routeTo").addEventListener("change", () => {
-  document.getElementById("routeStar").innerHTML = `<option value="">— без STAR (DCT) —</option>`;
-});
-
 /* ========== INIT ========== */
 initTheme();
 renderFavorites();
