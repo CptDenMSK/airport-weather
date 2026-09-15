@@ -171,7 +171,7 @@ pre {
 /* Route view */
 .route-form { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .form-row { display: flex; gap: 10px; }
-.form-row > div { flex: 1; }
+.form-row > div { flex: 1; min-width: 0; }
 .form-label {
   display: block; font-size: 12px; font-weight: 600; color: var(--text2);
   margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.4px;
@@ -243,34 +243,7 @@ footer {
   padding: 10px 16px 16px; font-size: 11px; color: var(--text2);
   text-align: center; border-top: 1px solid var(--border);
 }
-
-/* Mobile / Android layout fixes */
-html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
-body { margin: 0; }
-.app { width: 100%; max-width: 520px; min-width: 0; }
-.route-form, .route-result, .search-wrap, .panel { width: 100%; min-width: 0; }
-.form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
-.form-row > div { min-width: 0; }
-.route-input, select.route-input { width: 100%; max-width: 100%; min-width: 0; }
-.route-actions { width: 100%; min-width: 0; }
-.route-actions > * { min-width: 0; }
-.copy-box { padding-right: 104px; overflow-wrap: anywhere; }
-@media (max-width: 560px) {
-  .app { max-width: 100%; }
-  header { padding-left: 14px; padding-right: 14px; }
-  .route-form { padding: 12px 14px; gap: 10px; }
-  .form-row { grid-template-columns: 1fr; gap: 10px; }
-  .route-actions { flex-direction: column; }
-  .route-actions .btn-primary, .route-actions .btn-secondary { width: 100%; }
-  .airac-row { align-items: flex-start !important; flex-direction: column; }
-  .copy-box { padding-right: 12px; padding-top: 44px; }
-  .copy-btn { top: 8px; left: 8px; right: auto; }
-  .route-summary .dist { font-size: 24px; }
-}
-@media (min-width: 900px) {
-  .app { max-width: 560px; }
-}
-
+@media (max-width: 520px) { .form-row { flex-direction: column; } .route-actions { flex-direction: column; } .route-actions .btn-primary { width: 100%; } }
 </style>
 </head>
 <body>
@@ -328,63 +301,44 @@ body { margin: 0; }
   <!-- ========== ROUTE VIEW ========== -->
   <div id="view-route" class="view">
     <div class="route-form">
-      <div class="airac-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <span class="airac-badge" id="airacBadge">AIRAC …</span>
-        <span class="hint" id="airacDates"></span>
-      </div>
+      <div class="section-title">Простой планировщик маршрута</div>
 
       <div class="form-row">
         <div>
-          <label class="form-label">Аэропорт вылета</label>
-          <input class="route-input" id="routeFrom" maxlength="4" placeholder="UUWW" autocomplete="off" inputmode="text">
+          <label class="form-label">Откуда</label>
+          <input class="route-input" id="routeFrom" maxlength="4" placeholder="URSS" autocomplete="off">
         </div>
         <div>
-          <label class="form-label">Аэропорт прилёта</label>
-          <input class="route-input" id="routeTo" maxlength="4" placeholder="UUEE" autocomplete="off" inputmode="text">
+          <label class="form-label">Куда</label>
+          <input class="route-input" id="routeTo" maxlength="4" placeholder="UUWW" autocomplete="off">
         </div>
       </div>
 
-      <div class="route-actions" style="margin-top:0">
-        <button class="btn-secondary" id="loadProcBtn">Загрузить SID / STAR</button>
-      </div>
-
-      <div class="form-row">
-        <div>
-          <label class="form-label">SID — схема вылета</label>
-          <select class="route-input" id="routeSid">
-            <option value="">Сначала загрузите схемы</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label">STAR — схема прилёта</label>
-          <select class="route-input" id="routeStar">
-            <option value="">Сначала загрузите схемы</option>
-          </select>
-        </div>
-      </div>
-
-      <div>
-        <label class="form-label">Дополнительный участок <span style="font-weight:400;text-transform:none">(необязательно)</span></label>
-        <input class="route-input" id="routeString" placeholder="Например: DVL UL851 ER DANZA" autocomplete="off" style="text-transform:uppercase">
-        <div class="hint" style="margin-top:6px">Оставьте пустым — приложение само найдёт en-route участок между последней точкой SID и первой точкой STAR.</div>
-      </div>
+      <div class="hint">Только аэропорт вылета и аэропорт прилёта. Маршрут строит внешний Route Planner; SID, STAR и ВПП здесь не выбираются.</div>
 
       <div class="route-actions">
-        <button class="btn-primary" id="buildRouteBtn">Построить полный маршрут</button>
+        <button class="btn-primary" id="buildRouteBtn">Построить маршрут</button>
       </div>
     </div>
 
-    <div id="routeStatus" class="status">Введите ICAO и загрузите схемы.</div>
-    <div id="routeResult" class="route-result" style="display:none"></div>
+    <div id="routeStatus" class="status"></div>
+
+    <div id="routePreview" class="route-result" style="display:none"></div>
+
+    <div id="routeFrameWrap" style="display:none; padding:0 16px 24px; flex:1; min-height:0;">
+      <iframe id="routeFrame" title="Онлайн-планировщик" style="width:100%;height:70vh;border:1px solid var(--border);border-radius:12px;background:var(--surface);" loading="lazy" referrerpolicy="no-referrer"></iframe>
+      <button class="btn-secondary" id="openRouteExternal" style="width:100%;margin-top:8px;">Открыть планировщик в браузере</button>
+    </div>
   </div>
 
-  <footer>Данные: Open-Meteo · AIRAC (текущий цикл)</footer>
+  <footer>Данные: Open-Meteo · Rotate Pilot · airac.net (текущий AIRAC)</footer>
 </div>
 
 <script>
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 const FREE_AIRPORT_DB = "https://api.freeairportdb.com/v1/airports";
 const AIRAC_API = "https://airac.net/api/v1";
+const FPD_API_BASE = "https://airport-weather-fpd.dengrishin.workers.dev/fpd";
 const UA = "AirportWeather/2.0 (flight-sim; android)";
 
 const LOCAL_AIRPORTS = {
@@ -691,385 +645,74 @@ document.querySelectorAll(".tab").forEach(btn => {
   });
 });
 
-/* ========== ROUTE PLANNER ========== */
+/* ========== ROUTE PLANNER: EXTERNAL ROUTE ENGINE ========== */
+const ROUTE_ENGINE_BASE = "https://flightplanner.haileyro.com/";
+let currentRouteUrl = "";
 
-function routeHeaders() {
-  return {
-    Accept: "application/json",
-    "User-Agent": UA
-  };
+function normalizeIcao(value) {
+  return value.trim().toUpperCase();
 }
 
-async function apiGet(url) {
-  const r = await fetch(url, {headers: routeHeaders()});
-  let json = null;
-  try { json = await r.json(); } catch {}
-  if (!r.ok) {
-    const msg = json?.message || `HTTP ${r.status}`;
-    throw new Error(msg);
-  }
-  if (json?.status === "error") {
-    throw new Error(json.message || "Ошибка AIRAC API");
-  }
-  return json;
+function makeRouteEngineUrl(from, to) {
+  const u = new URL(ROUTE_ENGINE_BASE);
+  u.searchParams.set("dep", from);
+  u.searchParams.set("arr", to);
+  return u.toString();
 }
 
-async function loadAirac() {
-  try {
-    const json = await apiGet(`${AIRAC_API}/airac/current`);
-    currentAirac = json.data || null;
-    document.getElementById("airacBadge").textContent = currentAirac?.cycle ? `AIRAC ${currentAirac.cycle}` : "AIRAC ?";
-    const eff = currentAirac?.effective_date?.slice(0,10) || "";
-    const exp = currentAirac?.expiration_date?.slice(0,10) || "";
-    document.getElementById("airacDates").textContent = eff && exp ? `${eff} → ${exp}` : "";
-  } catch (e) {
-    document.getElementById("airacBadge").textContent = "AIRAC ?";
-    document.getElementById("airacDates").textContent = "ошибка загрузки";
-    console.error(e);
-  }
-}
+function renderRouteLaunch(from, to) {
+  const box = document.getElementById("routePreview");
+  currentRouteUrl = makeRouteEngineUrl(from, to);
+  box.style.display = "block";
+  box.innerHTML = `
+    <div class="route-summary">
+      <div class="dist">${escapeHTML(from)} → ${escapeHTML(to)}</div>
+      <div class="meta">Открывается внешний маршрутный движок без SID/STAR/RWY в нашем интерфейсе.</div>
+    </div>
+    <div class="copy-box" style="white-space:normal;word-break:normal;overflow-wrap:anywhere;">
+      <div style="font-family:ui-monospace,monospace;font-size:12px;">${escapeHTML(currentRouteUrl)}</div>
+    </div>`;
 
-async function fetchProcedures(icao, type) {
-  const url = `${AIRAC_API}/procedures?airport=${encodeURIComponent(icao)}&type=${type}`;
-  const json = await apiGet(url);
-  return Array.isArray(json.data) ? json.data : [];
-}
-
-function procedureLabel(p) {
-  const ident = p?.identifier || "?";
-  const runway = p?.runway ? ` · RWY ${p.runway}` : "";
-  const name = p?.name && p.name !== ident ? ` — ${p.name}` : "";
-  return `${ident}${runway}${name}`;
-}
-
-function fillProcedureSelect(select, items, emptyText) {
-  const unique = [];
-  const seen = new Set();
-  for (const p of items) {
-    const id = (p?.identifier || "").toUpperCase();
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    unique.push(p);
-  }
-  select.innerHTML = "";
-  const first = document.createElement("option");
-  first.value = "";
-  first.textContent = emptyText;
-  select.appendChild(first);
-  unique.forEach(p => {
-    const opt = document.createElement("option");
-    opt.value = p.identifier;
-    opt.textContent = procedureLabel(p);
-    select.appendChild(opt);
-  });
-  return unique.length;
-}
-
-async function loadProcedures() {
-  const from = document.getElementById("routeFrom").value.trim().toUpperCase();
-  const to = document.getElementById("routeTo").value.trim().toUpperCase();
-  const sidSel = document.getElementById("routeSid");
-  const starSel = document.getElementById("routeStar");
-
-  if (!/^[A-Z0-9]{4}$/.test(from) || !/^[A-Z0-9]{4}$/.test(to)) {
-    setRouteStatus("Введите два корректных 4-буквенных ICAO-кода.", true);
-    return;
-  }
-
-  const btn = document.getElementById("loadProcBtn");
-  btn.disabled = true;
-  sidSel.innerHTML = `<option value="">Загрузка…</option>`;
-  starSel.innerHTML = `<option value="">Загрузка…</option>`;
-  setRouteStatus(`Получаю SID для ${from} и STAR для ${to}…`);
-
-  try {
-    const [sids, stars] = await Promise.all([
-      fetchProcedures(from, "SID"),
-      fetchProcedures(to, "STAR")
-    ]);
-
-    const sidCount = fillProcedureSelect(sidSel, sids, "— выбрать SID —");
-    const starCount = fillProcedureSelect(starSel, stars, "— выбрать STAR —");
-
-    if (!sidCount && !starCount) {
-      throw new Error(`AIRAC API не вернул схемы для ${from} / ${to}.`);
-    }
-
-    setRouteStatus(`Найдено SID: ${sidCount} · STAR: ${starCount}. Выберите обе схемы.`);
-  } catch (e) {
-    sidSel.innerHTML = `<option value="">Не загружено</option>`;
-    starSel.innerHTML = `<option value="">Не загружено</option>`;
-    console.error(e);
-    setRouteStatus(`Не удалось загрузить SID/STAR: ${e.message}`, true);
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-function normalizeFixList(value) {
-  const arr = Array.isArray(value) ? value : [];
-  return arr
-    .map(x => ({
-      id: (x?.fix_identifier || x?.identifier || "").toUpperCase(),
-      lat: x?.fix_coordinates?.lat ?? x?.coordinates?.lat ?? null,
-      lon: x?.fix_coordinates?.lon ?? x?.coordinates?.lon ?? null,
-      sequence: Number(x?.sequence || 0)
-    }))
-    .filter(x => x.id)
-    .sort((a,b) => a.sequence - b.sequence);
-}
-
-function extractCommonRoute(detail) {
-  const cr = detail?.common_route;
-  if (Array.isArray(cr)) return normalizeFixList(cr);
-  if (cr && typeof cr === "object") {
-    const flattened = [];
-    for (const value of Object.values(cr)) {
-      if (Array.isArray(value)) flattened.push(...normalizeFixList(value));
-    }
-    return flattened.sort((a,b) => a.sequence - b.sequence);
-  }
-  return [];
-}
-
-function extractRunwayTransition(detail, runway) {
-  const rt = detail?.runway_transitions;
-  if (!rt || typeof rt !== "object") return [];
-  const selected = runway && Array.isArray(rt[runway]) ? rt[runway] : null;
-  if (selected) return normalizeFixList(selected);
-  const firstKey = Object.keys(rt)[0];
-  return firstKey && Array.isArray(rt[firstKey]) ? normalizeFixList(rt[firstKey]) : [];
-}
-
-async function fetchProcedureDetail(icao, identifier) {
-  const url = `${AIRAC_API}/procedures/${encodeURIComponent(icao)}/${encodeURIComponent(identifier)}`;
-  const json = await apiGet(url);
-  return json.data;
-}
-
-function chooseProcedureFixes(detail) {
-  const runwayPart = extractRunwayTransition(detail, detail?.runway);
-  const commonPart = extractCommonRoute(detail);
-  const merged = [...runwayPart, ...commonPart];
-  const out = [];
-  const seen = new Set();
-  for (const p of merged) {
-    if (!p.id || seen.has(p.id)) continue;
-    seen.add(p.id);
-    out.push(p);
-  }
-  return out;
-}
-
-function tokensFromGeneric(obj) {
-  const found = [];
-  const push = (v) => {
-    if (typeof v !== "string") return;
-    const x = v.trim().toUpperCase();
-    if (x && !found.includes(x)) found.push(x);
-  };
-  const airwayRe = /^[A-Z][0-9]{1,4}$/;
-  function walk(node) {
-    if (!node) return;
-    if (typeof node === "string") return;
-    if (Array.isArray(node)) { node.forEach(walk); return; }
-    if (typeof node !== "object") return;
-    const airway = node.airway_identifier || node.airway || node.route_designator;
-    const from = node.from_fix || node.from_identifier || (node.from && node.from.identifier);
-    const to = node.to_fix || node.to_identifier || (node.to && node.to.identifier);
-    if (typeof from === "string") push(from);
-    if (typeof airway === "string" && airwayRe.test(airway.trim().toUpperCase())) push(airway);
-    if (typeof to === "string") push(to);
-    for (const [k,v] of Object.entries(node)) {
-      if (["route","route_string","airway_route","airways"].includes(k)) {
-        if (typeof v === "string") v.split(/\s+/).forEach(push);
-        else walk(v);
-      } else if (k === "segments" || k === "legs") {
-        walk(v);
-      }
-    }
-  }
-  walk(obj);
-  return found;
-}
-
-async function findAirwayConnection(fromFix, toFix) {
-  const url = `${AIRAC_API}/airways/route?from=${encodeURIComponent(fromFix)}&to=${encodeURIComponent(toFix)}`;
-  const json = await apiGet(url);
-  const data = json.data;
-
-  let tokens = [];
-  if (typeof data === "string") tokens = data.trim().split(/\s+/);
-  else if (Array.isArray(data?.route)) tokens = data.route.flatMap(x => typeof x === "string" ? x.split(/\s+/) : []);
-  else if (typeof data?.route_string === "string") tokens = data.route_string.trim().split(/\s+/);
-  else tokens = tokensFromGeneric(data);
-
-  tokens = tokens.map(x => x.toUpperCase()).filter(Boolean);
-
-  if (!tokens.length) {
-    throw new Error(`AIRAC не вернул en-route трассу между ${fromFix} и ${toFix}.`);
-  }
-
-  return tokens;
-}
-
-function cleanTokens(tokens) {
-  const out = [];
-  for (const x of tokens) {
-    const t = String(x || "").trim().toUpperCase();
-    if (!t) continue;
-    if (out[out.length - 1] === t) continue;
-    out.push(t);
-  }
-  return out;
+  const wrap = document.getElementById("routeFrameWrap");
+  const frame = document.getElementById("routeFrame");
+  frame.src = currentRouteUrl;
+  wrap.style.display = "block";
 }
 
 async function buildRoute() {
-  const from = document.getElementById("routeFrom").value.trim().toUpperCase();
-  const to = document.getElementById("routeTo").value.trim().toUpperCase();
-  const sid = document.getElementById("routeSid").value.trim().toUpperCase();
-  const star = document.getElementById("routeStar").value.trim().toUpperCase();
-  const manual = document.getElementById("routeString").value.trim().toUpperCase();
+  const from = normalizeIcao(document.getElementById("routeFrom").value);
+  const to = normalizeIcao(document.getElementById("routeTo").value);
   const btn = document.getElementById("buildRouteBtn");
 
+  document.getElementById("routePreview").style.display = "none";
+  document.getElementById("routeFrameWrap").style.display = "none";
+
   if (!/^[A-Z0-9]{4}$/.test(from) || !/^[A-Z0-9]{4}$/.test(to)) {
-    setRouteStatus("Введите корректные ICAO-коды вылета и прилёта.", true);
-    return;
-  }
-  if (!sid || !star) {
-    setRouteStatus("Выберите SID и STAR. Без них полноценный маршрут не строим.", true);
+    setRouteStatus("Введите два корректных 4-символьных ICAO-кода", true);
     return;
   }
 
   btn.disabled = true;
-  document.getElementById("routeResult").style.display = "none";
+  setRouteStatus("Открываю Route Planner…");
 
   try {
-    setRouteStatus("Получаю структуру SID и STAR…");
-    const [sidDetail, starDetail] = await Promise.all([
-      fetchProcedureDetail(from, sid),
-      fetchProcedureDetail(to, star)
-    ]);
-
-    const sidFixes = chooseProcedureFixes(sidDetail);
-    const starFixes = chooseProcedureFixes(starDetail);
-
-    if (!sidFixes.length) throw new Error(`У SID ${sid} нет читаемых точек.`);
-    if (!starFixes.length) throw new Error(`У STAR ${star} нет читаемых точек.`);
-
-    const sidExit = sidFixes[sidFixes.length - 1].id;
-    const starEntry = starFixes[0].id;
-
-    setRouteStatus(`Ищу воздушные трассы ${sidExit} → ${starEntry}…`);
-
-    let middleTokens = [];
-    if (manual) {
-      middleTokens = manual.split(/\s+/).filter(Boolean);
-    } else {
-      middleTokens = await findAirwayConnection(sidExit, starEntry);
-    }
-
-    middleTokens = cleanTokens(middleTokens).filter(x => x !== sidExit && x !== starEntry);
-
-    if (!middleTokens.length && sidExit !== starEntry) {
-      throw new Error(`Между ${sidExit} и ${starEntry} не найден опубликованный en-route участок.`);
-    }
-
-    const routeStr = cleanTokens([sid, ...middleTokens, star]).join(" ");
-
-    setRouteStatus("Разворачиваю SID → трассы → STAR в реальные точки…");
-
-    const params = new URLSearchParams({
-      origin: from,
-      destination: to,
-      route: routeStr
-    });
-
-    const parsed = await apiGet(`${AIRAC_API}/routes/parse?${params.toString()}`);
-    renderRouteResult(parsed.data, from, to, routeStr, sidFixes, starFixes, middleTokens);
-    setRouteStatus("Готово: полный маршрут построен.");
+    renderRouteLaunch(from, to);
+    setRouteStatus("Route Planner открыт");
   } catch (e) {
     console.error(e);
-    setRouteStatus(e.message || "Ошибка построения маршрута", true);
+    setRouteStatus(e.message || "Не удалось открыть планировщик", true);
   } finally {
     btn.disabled = false;
   }
 }
 
-function renderRouteResult(data, from, to, routeStr, sidFixes, starFixes, middleTokens) {
-  const box = document.getElementById("routeResult");
-  box.style.display = "block";
-  const segments = Array.isArray(data?.segments) ? data.segments : [];
-  const total = Number.isFinite(Number(data?.total_distance)) ? Number(data.total_distance).toFixed(1) : "—";
-  const errors = Array.isArray(data?.errors) ? data.errors : [];
-  const copyStr = `${from} ${routeStr} ${to}`.replace(/\s+/g, " ").trim();
-
-  let html = `
-    <div class="route-summary">
-      <div class="dist">${total} NM</div>
-      <div class="meta">${escapeHTML(from)} → ${escapeHTML(to)} · AIRAC ${escapeHTML(currentAirac?.cycle || "?")}</div>
-    </div>
-    <div class="copy-box">${escapeHTML(copyStr)}<button class="copy-btn" id="copyRouteBtn">Копировать</button></div>
-    <div class="section-title">Автоматически найденный en-route</div>
-    <div class="hint" style="margin-bottom:10px">${escapeHTML(middleTokens.join(" → ") || "нет")}</div>
-  `;
-
-  if (errors.length) {
-    html += `<div class="errors-box"><strong>Ответ API:</strong><br>${errors.map(e => escapeHTML(e.message || JSON.stringify(e))).join("<br>")}</div>`;
-  }
-
-  const points = [];
-  for (let i=0; i<segments.length; i++) {
-    const seg = segments[i];
-    if (i === 0 && seg?.from) points.push(seg.from);
-    if (seg?.to) points.push(seg.to);
-  }
-  const unique = [];
-  const seen = new Set();
-  for (const p of points) {
-    const id = String(p?.identifier || "").toUpperCase();
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    unique.push(p);
-  }
-
-  html += `<div class="section-title" style="margin-top:14px">Точки полного маршрута · ${unique.length}</div><div class="points-list">`;
-
-  unique.forEach((p, i) => {
-    const coords = p?.coordinates && p.coordinates.lat != null && p.coordinates.lon != null
-      ? `${Number(p.coordinates.lat).toFixed(4)}, ${Number(p.coordinates.lon).toFixed(4)}` : "—";
-    html += `
-      <div class="point-item">
-        <div class="point-num">${i+1}</div>
-        <div class="point-info">
-          <div class="point-id">${escapeHTML(p.identifier || "?")}</div>
-          <div class="point-coords">${escapeHTML(p.name || p.type || "waypoint")} · ${escapeHTML(coords)}</div>
-          ${p.via ? `<div class="point-coords">${escapeHTML(p.via)}</div>` : ""}
-        </div>
-      </div>`;
-  });
-  html += `</div>`;
-  box.innerHTML = html;
-
-  const copy = document.getElementById("copyRouteBtn");
-  copy.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(copyStr);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = copyStr;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      ta.remove();
-    }
-    copy.textContent = "Скопировано";
-    setTimeout(() => copy.textContent = "Копировать", 1500);
-  });
-}
-
 document.getElementById("buildRouteBtn").addEventListener("click", buildRoute);
-document.getElementById("loadProcBtn").addEventListener("click", loadProcedures);
+document.getElementById("openRouteExternal").addEventListener("click", () => {
+  if (currentRouteUrl) {
+    window.open(currentRouteUrl, "_blank");
+  }
+});
+
 /* ========== INIT ========== */
 initTheme();
 renderFavorites();
