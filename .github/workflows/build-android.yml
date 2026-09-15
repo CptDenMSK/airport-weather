@@ -33,15 +33,15 @@ jobs:
           packages: ''
 
       - name: Add Android platform
-        run: |
-          if [ ! -d "android" ]; then
-            npx cap add android
-          fi
+        run: npx cap add android
 
-      - name: Sync web assets to Android
-        run: npx cap sync android
+      - name: Copy web app into Android
+        run: npx cap copy android
 
-      - name: Build Debug APK
+      - name: Update Capacitor Android project
+        run: npx cap update android
+
+      - name: Build APK
         working-directory: android
         run: |
           chmod +x gradlew
