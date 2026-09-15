@@ -190,7 +190,15 @@ pre {
   .form-row.mobile-stack { flex-direction: column; gap: 10px; }
   .form-row.mobile-stack > div { width: 100%; }
   .route-actions { flex-direction: column; }
-  .route-actions button { width: 100%; }
+  .route-actions button {
+    width: 100%;
+    min-height: 52px;
+  }
+  .route-actions .btn-primary {
+    height: 52px;
+    font-size: 16px;
+    padding: 0 16px;
+  }
 }
 
 .form-label {
@@ -204,7 +212,18 @@ select.route-input {
   padding-right: 32px;
 }
 .route-actions { display: flex; gap: 8px; margin-top: 4px; }
-.route-actions .btn-primary { flex: 1; height: 46px; }
+.route-actions .btn-primary {
+  flex: 1;
+  width: 100%;
+  min-height: 52px;
+  height: 52px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
 .btn-secondary {
   border: 1.5px solid var(--border); border-radius: 12px;
   background: var(--surface2); color: var(--text); font-size: 14px;
@@ -676,7 +695,28 @@ async function buildRoute(){
 
 function renderSimpleRoute(route,from,to,source){
   const box=document.getElementById("routeResult"); box.style.display="block";
-  const display=String(route).replace(/\s+/g," ").trim(); const tokens=display.split(/\s+/).filter(Boolean);
+  const raw=String(route).replace(/\s+/g," ").trim();
+  const tokens=raw.split(/\s+/).filter(Boolean);
+
+  // Только для отображения: первый DCT после вылета показываем как SID,
+  // последний DCT перед прилётом — как STAR. Сам маршрут Worker не меняется.
+  const displayTokens=[...tokens];
+  if(displayTokens.length>=3 && displayTokens[0].toUpperCase()===from){
+    const firstDct=displayTokens.findIndex((t,i)=>i>0 && t.toUpperCase()==="DCT");
+    if(firstDct>0){
+      displayTokens[firstDct]="SID";
+    }
+  }
+  if(displayTokens.length>=3 && displayTokens[displayTokens.length-1].toUpperCase()===to){
+    for(let i=displayTokens.length-2;i>0;i--){
+      if(displayTokens[i].toUpperCase()==="DCT"){
+        displayTokens[i]="STAR";
+        break;
+      }
+    }
+  }
+  const display=displayTokens.join(" ");
+
   let html=`<div class="route-summary"><div class="dist" style="font-size:20px">${escapeHTML(from)} → ${escapeHTML(to)}</div><div class="meta">Источник: ${escapeHTML(source)}</div></div>`;
   html+=`<div class="copy-actions"><button class="copy-btn" id="copyRouteBtn" title="Копировать маршрут" aria-label="Копировать маршрут">⧉</button></div>`;
   html+=`<div class="copy-box route-string" id="copyBox">${escapeHTML(display)}</div>`;
